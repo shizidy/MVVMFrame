@@ -64,56 +64,76 @@
 }
 #pragma mark ========== 拖动手势事件 ==========
 -(void)pan:(UIPanGestureRecognizer *)gesture {
+    //当首页或者我的页面push后，停止响应手势
+    NSInteger viewControllerCount = self.centerVC.homeVC.navigationController.viewControllers.count;
+    if (viewControllerCount > 1) {
+        return;
+    }
     CGPoint point = [gesture translationInView:self.view];
-    
+    CGFloat offset_X = point.x;
+    CGFloat translationX = point.x + originPoint.x;
     if (gesture.state == UIGestureRecognizerStateBegan) {
         
     }
     
     if (gesture.state == UIGestureRecognizerStateChanged) {
-        if (point.x + originPoint.x > kScreenWidth - kMargin) {
-            originPoint = CGPointMake(kScreenWidth - kMargin, 0);
-            self.centerVC.navigationController.view.transform = CGAffineTransformMakeTranslation(kScreenWidth - kMargin, 0);
-        } else if (point.x + originPoint.x < 0) {
-            originPoint = CGPointMake(0, 0);
-            self.centerVC.navigationController.view.transform = CGAffineTransformIdentity;
-        } else {
-            self.centerVC.navigationController.view.transform = CGAffineTransformMakeTranslation(point.x + originPoint.x, 0);
-        }
+        [self.view insertSubview:self.leftVC.view aboveSubview:self.rightVC.view];
+        translationX = MIN(translationX, kScreenWidth - kMargin);
+        translationX = MAX(translationX, 0);
+        self.centerVC.view.transform = CGAffineTransformMakeTranslation(translationX, 0);
+        self.leftVC.view.transform = CGAffineTransformMakeTranslation(-kMargin + fabs(translationX * kMargin / (kScreenWidth - kMargin)), 0);
+        self.coverView.hidden = NO;
+        self.coverView.alpha = fabs(0.5 * translationX / (kScreenWidth - kMargin));
     }
     if (gesture.state == UIGestureRecognizerStateEnded) {
-        NSLog(@"%.1f", point.x + originPoint.x);
-        //左菜单关闭状态
-        if (originPoint.x == 0 && self.menuStyle == LeftMenuStyle) {
-            if (point.x >= kMargin && point.x < kScreenWidth - kMargin) {
-                originPoint = CGPointMake(kScreenWidth - kMargin, 0);
-                [UIView animateWithDuration:0.3 animations:^{
-                    self.centerVC.navigationController.view.transform = CGAffineTransformMakeTranslation(kScreenWidth - kMargin, 0);
-                }];
-            }
-            if (point.x < kMargin && point.x > 0) {
-                originPoint = CGPointMake(0, 0);
-                [UIView animateWithDuration:0.3 animations:^{
-                    self.centerVC.navigationController.view.transform = CGAffineTransformIdentity;
-                }];
-            }
-        }
-        //左菜单开启状态
-        if (originPoint.x == kScreenWidth - kMargin && self.menuStyle == LeftMenuStyle) {
-            if (point.x > -kMargin && point.x < 0) {
-                originPoint = CGPointMake(kScreenWidth - kMargin, 0);
-                [UIView animateWithDuration:0.3 animations:^{
-                    self.centerVC.navigationController.view.transform = CGAffineTransformMakeTranslation(kScreenWidth - kMargin, 0);
-                }];
-            }
-            if (point.x <= -kMargin && point.x + originPoint.x > 0) {
-                originPoint = CGPointMake(0, 0);
-                [UIView animateWithDuration:0.3 animations:^{
-                    self.centerVC.navigationController.view.transform = CGAffineTransformIdentity;
-                }];
+        NSLog(@"%.1f", translationX);
+        if (translationX == kScreenWidth - kMargin) {
+            originPoint = CGPointMake(kScreenWidth - kMargin, 0);
+        } else if (translationX == 0) {
+            originPoint = CGPointMake(0, 0);
+        } else {
+            if (originPoint.x == 0) {//左菜单关闭状态
+                if (offset_X >= kMargin) {
+                    [UIView animateWithDuration:0.3 animations:^{
+                        [self leftMenuShow];
+                    }];
+                } else {
+                    [UIView animateWithDuration:0.3 animations:^{
+                        [self leftMenuClose];
+                    } completion:^(BOOL finished) {
+                        self.coverView.hidden  = YES;
+                    }];
+                }
+            } else {//左菜单开启状态
+                if (offset_X > -kMargin) {
+                    [UIView animateWithDuration:0.3 animations:^{
+                        [self leftMenuShow];
+                    }];
+                } else {
+                    [[NSNotificationCenter defaultCenter] postNotificationName:@"resetButton" object:@"NO"];
+                    [UIView animateWithDuration:0.3 animations:^{
+                        [self leftMenuClose];
+                    } completion:^(BOOL finished) {
+                        self.coverView.hidden  = YES;
+                    }];
+                }
             }
         }
     }
+}
+
+- (void)leftMenuShow {
+    self.centerVC.view.transform = CGAffineTransformMakeTranslation(kScreenWidth - kMargin, 0);
+    self.leftVC.view.transform = CGAffineTransformIdentity;
+    self.coverView.alpha = fabs(0.5 * self.centerVC.view.frame.origin.x / (kScreenWidth - kMargin));
+    originPoint = CGPointMake(kScreenWidth - kMargin, 0);
+}
+
+- (void)leftMenuClose {
+    self.centerVC.view.transform = CGAffineTransformIdentity;
+    self.leftVC.view.transform = CGAffineTransformMakeTranslation(-kMargin, 0);
+    self.coverView.alpha = fabs(0.5 * self.centerVC.view.frame.origin.x / (kScreenWidth - kMargin));
+    originPoint = CGPointMake(0, 0);
 }
 
 #pragma mark ========== dealloc ==========
@@ -121,35 +141,38 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 #pragma mark ========== 懒加载 ==========
--(LeftViewController *)leftVC{
-    if (_leftVC==nil) {
+- (LeftViewController *)leftVC {
+    if (_leftVC == nil) {
         _leftVC = [[LeftViewController alloc] init];
     }
     return _leftVC;
 }
--(RightViewController *)rightVC{
-    if (_rightVC==nil) {
+- (RightViewController *)rightVC {
+    if (_rightVC == nil) {
         _rightVC = [[RightViewController alloc] init];
     }
     return _rightVC;
 }
--(CenterViewController *)centerVC{
-    if (_centerVC==nil) {
+
+- (CenterViewController *)centerVC {
+    if (_centerVC == nil) {
         _centerVC = [[CenterViewController alloc] init];
     }
     return _centerVC;
 }
--(UIPanGestureRecognizer *)panGesture{
+
+- (UIPanGestureRecognizer *)panGesture {
     if (!_panGesture) {
         _panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(pan:)];
     }
     return _panGesture;
 }
--(UIView *)coverView{
+
+- (UIView *)coverView {
     if (!_coverView) {
         _coverView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, kScreenWidth, kScreenHeight)];
         _coverView.backgroundColor = [UIColor blackColor];
-        _coverView.alpha = 0.2;
+        _coverView.alpha = 0.0;
         _coverView.userInteractionEnabled = YES;
     }
     return _coverView;

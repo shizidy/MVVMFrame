@@ -7,7 +7,6 @@
 //
 
 #import "CenterViewController.h"
-#import "HomeViewController.h"
 #define kScreenHeight     [[UIScreen mainScreen] bounds].size.height
 #define kScreenWidth       [[UIScreen mainScreen] bounds].size.width
 @interface CenterViewController ()
@@ -31,8 +30,14 @@
 }
 
 - (void)buttonClik:(UIButton *)btn {
-    HomeViewController *viewController = [[HomeViewController alloc] initWithParams:@{}];
-    [self.navigationController pushViewController:viewController animated:YES];
+    [self.navigationController pushViewController:self.homeVC animated:YES];
+}
+
+- (HomeViewController *)homeVC {
+    if (!_homeVC) {
+        _homeVC = [[HomeViewController alloc] initWithParams:@{}];
+    }
+    return _homeVC;
 }
 
 /*

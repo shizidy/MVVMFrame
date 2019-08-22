@@ -7,11 +7,12 @@
 //
 
 #import "BaseViewController.h"
+#import "HomeViewController.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
 @interface CenterViewController : BaseViewController
-
+@property (nonatomic, strong) HomeViewController *homeVC;
 @end
 
 NS_ASSUME_NONNULL_END
